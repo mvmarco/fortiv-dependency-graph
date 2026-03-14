@@ -1,1 +1,9 @@
 @import "tailwindcss";
+
+/* Handles exist in the DOM to anchor edge endpoints but serve no purpose
+   in a read-only viewer, so hide them without removing them from layout. */
+.react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+  cursor: default;
+}

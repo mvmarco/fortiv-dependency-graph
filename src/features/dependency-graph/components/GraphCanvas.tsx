@@ -111,6 +111,7 @@ export function GraphCanvas({ initialNodes, initialEdges, selectedNodeId, onNode
         defaultEdgeOptions={defaultEdgeOptions}
         onNodeClick={handleNodeClick}
         onPaneClick={handlePaneClick}
+        nodesConnectable={false}
         fitView
         fitViewOptions={fitViewOptions}
         minZoom={0.2}

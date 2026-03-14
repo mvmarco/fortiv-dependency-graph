@@ -155,6 +155,15 @@ The `Row` helper is a local function — no abstraction file needed for a single
 
 ---
 
+## Read-only graph
+
+Two changes to prevent connection editing:
+
+- `nodesConnectable={false}` on `ReactFlow` — the canonical React Flow flag that disables all handle drag-to-connect behaviour
+- `.react-flow__handle { opacity: 0; pointer-events: none; }` in `index.css` — hides handle dots visually while keeping them in the DOM at their natural positions, so existing edge endpoints remain correctly anchored
+
+---
+
 ## Observations about dataset
 
 While inspecting the dataset, I noticed that most dependencies follow the expected pattern:
