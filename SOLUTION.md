@@ -124,6 +124,37 @@ Both components accept `selected` from `NodeProps` and apply a subtle ring when 
 
 ---
 
+## Step 3 — Node selection and detail panel
+
+### State architecture
+
+`selectedNodeId: string | null` lives in `App.tsx`. This lets `App` look up the selected `AppNode` from the `useGraphData()` result and pass it to `DetailPanel` without calling the hook twice.
+
+`useGraphData()` also moved to `App.tsx`. The resolved `nodes` and `edges` are passed as `initialNodes` / `initialEdges` props to `GraphCanvas`.
+
+### Selection behaviour (`GraphCanvas`)
+
+A `useEffect` keyed on `[selectedNodeId, initialEdges]` recomputes the visual state on every selection change:
+
+- Walks `initialEdges` once to build `connectedEdgeIds` and `highlightedNodeIds` (selected node + its direct neighbors)
+- Calls `setNodes` to apply `className: 'opacity-30'` to every node **not** in `highlightedNodeIds`, and `selected: true` on the selected node (drives the ring in the custom components)
+- Calls `setEdges` to apply a bold slate style to connected edges and a faded style to unrelated ones
+- When `selectedNodeId` is `null`, resets all `className` values and edge styles to defaults
+
+`onNodeClick` toggles selection: clicking the already-selected node calls `onNodeSelect(null)`.
+`onPaneClick` always clears selection.
+
+### Detail panel (`DetailPanel.tsx`)
+
+Renders in a `w-72` aside to the right of the canvas, only when `selectedNode` is non-null.
+
+**Activity fields:** priority (coloured badge), owner, recovery time objective
+**Resource fields:** resource type, contact, vendor (only if present), SPOF status with dependent node count
+
+The `Row` helper is a local function — no abstraction file needed for a single use.
+
+---
+
 ## Observations about dataset
 
 While inspecting the dataset, I noticed that most dependencies follow the expected pattern:
