@@ -155,6 +155,31 @@ The `Row` helper is a local function — no abstraction file needed for a single
 
 ---
 
+## Step 4 — Reload, activity ordering, resource ordering
+
+### Reload
+
+`version: number` state in `App` is incremented by the **Reload** button. It is passed as a parameter to `useGraphData`, which includes it in the `useMemo` dependency array. When `version` changes, `transformGraph` re-runs with the current sort options, producing fresh node positions. Clicking Reload also clears `selectedNodeId`.
+
+### Sort options
+
+Two optional flags were added to `transformGraph`:
+
+- `sortActivitiesByPriority` — sorts activities `critical → high → medium` before assigning Y positions, using a `PRIORITY_ORDER` lookup
+- `sortResourcesByDependencyCount` — sorts resources by descending inbound dependency count (most-connected SPOFs appear at the top of the right column)
+
+Both sorts operate on the arrays returned by `filter()`, so `raw.nodes` is never mutated.
+
+### Graph remount strategy
+
+`graphKey = \`${version}:${sortActivities}:${sortResources}\`` is passed as the `key` prop to `GraphCanvas`. When any of the three values change, React unmounts and remounts `GraphCanvas`, which causes `useNodesState` to reinitialise with the new positions and React Flow to re-run `fitView`. This is simpler and more correct than trying to imperatively sync `initialNodes` into an already-mounted React Flow instance.
+
+### UI
+
+A `ToggleButton` local component (active = dark fill, inactive = outlined) is used for the two sort options. The **Reload** button uses the same base styles without toggle state. All controls sit in the right side of the header, separated from the title block by a flex spacer and from the Reload button by a thin divider.
+
+---
+
 ## Read-only graph
 
 Two changes to prevent connection editing:

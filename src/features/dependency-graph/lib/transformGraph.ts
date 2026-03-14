@@ -6,6 +6,7 @@ import type {
   AppNode,
   ActivityNodeData,
   ResourceNodeData,
+  Priority,
 } from '../types/graph';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -25,6 +26,17 @@ const LAYOUT = {
  */
 const SPOF_THRESHOLD = 2;
 
+const PRIORITY_ORDER: Record<Priority, number> = { critical: 0, high: 1, medium: 2 };
+
+// ── Options ───────────────────────────────────────────────────────────────────
+
+interface TransformOptions {
+  /** Sort activities critical → high → medium before assigning Y positions. */
+  sortActivitiesByPriority?: boolean;
+  /** Sort resources by descending inbound dependency count (SPOFs first). */
+  sortResourcesByDependencyCount?: boolean;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function buildInboundCounts(raw: RawGraph): Map<string, number> {
@@ -37,11 +49,25 @@ function buildInboundCounts(raw: RawGraph): Map<string, number> {
 
 // ── Transform ─────────────────────────────────────────────────────────────────
 
-export function transformGraph(raw: RawGraph): { nodes: AppNode[]; edges: Edge[] } {
+export function transformGraph(
+  raw: RawGraph,
+  options: TransformOptions = {},
+): { nodes: AppNode[]; edges: Edge[] } {
   const inboundCounts = buildInboundCounts(raw);
 
+  // filter() returns new arrays — safe to sort in-place without mutating raw.nodes
   const activities = raw.nodes.filter((n): n is RawActivityNode => n.type === 'activity');
   const resources = raw.nodes.filter((n): n is RawResourceNode => n.type === 'resource');
+
+  if (options.sortActivitiesByPriority) {
+    activities.sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]);
+  }
+
+  if (options.sortResourcesByDependencyCount) {
+    resources.sort(
+      (a, b) => (inboundCounts.get(b.id) ?? 0) - (inboundCounts.get(a.id) ?? 0),
+    );
+  }
 
   const activityNodes: AppNode[] = activities.map((n, i) => ({
     id: n.id,
