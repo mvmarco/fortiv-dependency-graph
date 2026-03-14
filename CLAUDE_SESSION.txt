@@ -1,0 +1,1704 @@
+╭─── Claude Code v2.1.76 ──────────────────────────────────────────────────────╮
+│                                                    │ Tips for getting        │
+│                    Welcome back!                   │ started                 │
+│                                                    │ Run /init to create a … │
+│                      ▗ ▗   ▖ ▖                     │ ─────────────────────── │
+│                                                    │ Recent activity         │
+│                        ▘▘ ▝▝                       │ No recent activity      │
+│                                                    │                         │
+│           Sonnet 4.5 · API Usage Billing           │                         │
+│  ~/code/personal_projects/assignment-marco-corapi  │                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+❯ Inspect the repository and dataset.                                           
+                                                                                
+We are implementing a dependency graph viewer using:                            
+- React 19                                                                      
+- TypeScript strict mode                                                        
+- React Flow                                                                    
+- Tailwind CSS                                                                  
+                                                                                
+The dataset is located at ./data/graph.json.                                    
+                                                                                
+First provide:                                                                  
+1. implementation plan                                                          
+2. recommended folder structure                                                 
+3. files that should be created                                                 
+4. observations about the dataset or spec                                       
+                                                                                
+Do not start coding yet.                                                        
+
+⏺ Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+⏺ Now let me read the existing source files and config to understand what's
+  already set up.
+
+⏺ Searched for 1 pattern, read 8 files (ctrl+o to expand)
+
+⏺ Good — I have a full picture of the project. Here is the complete plan.
+
+  ---
+  1. Implementation Plan
+
+  Phase 1 — Data layer
+
+  - Define TypeScript types for the raw JSON schema (ActivityNode, ResourceNode,
+   Dependency)
+  - Write a transformer that converts the raw JSON into React Flow Node[] and
+  Edge[] arrays
+  - Apply an automatic layout algorithm (dagre or a simple tiered layout) to
+  assign initial positions — activities on the left column, resources on the
+  right
+
+  Phase 2 — Graph canvas
+
+  - Integrate @xyflow/react (ReactFlow) with the transformed nodes/edges
+  - Enable built-in controls (zoom, pan, fit-view)
+  - Display a minimap for orientation
+
+  Phase 3 — Custom node types
+
+  - ActivityNode — pill/card shape, coloured by priority (critical = red, high =
+   orange, medium = blue), shows name + RTO badge
+  - ResourceNode — distinct shape/colour per resource_type (technology, people,
+  third_party, building, equipment), shows name + type badge
+
+  Phase 4 — Selection & detail panel
+
+  - Clicking a node opens a side panel with all its metadata (owner/contact,
+  vendor if applicable, RTO, priority, connected nodes)
+  - Clicking an edge highlights that connection
+  - Clicking the canvas background clears selection
+
+  Phase 5 — Filtering / legend
+
+  - A legend explaining node colours/shapes
+  - Optional: toggle-filter by node type or priority (if time allows)
+
+  ---
+  2. Recommended Folder Structure
+
+  src/
+  ├── App.tsx                        # root layout, wires canvas + panel
+  ├── main.tsx                       # existing entry point
+  ├── index.css                      # existing Tailwind import
+  │
+  ├── data/
+  │   └── graph.json                 # symlink or re-export (loaded via Vite's
+  ?url or direct import)
+  │
+  ├── types/
+  │   └── graph.ts                   # domain types (ActivityNode, ResourceNode,
+   Dependency, etc.)
+  │
+  ├── lib/
+  │   └── transformGraph.ts          # raw JSON → ReactFlow nodes + edges +
+  layout
+  │
+  ├── components/
+  │   ├── GraphCanvas.tsx            # <ReactFlow> wrapper, registers custom
+  node types
+  │   ├── nodes/
+  │   │   ├── ActivityFlowNode.tsx   # custom ReactFlow node for activities
+  │   │   └── ResourceFlowNode.tsx   # custom ReactFlow node for resources
+  │   ├── DetailPanel.tsx            # side panel shown on node selection
+  │   └── Legend.tsx                 # colour/shape legend
+  │
+  └── hooks/
+      └── useGraphData.ts            # loads + memoises transformed graph data
+
+  ---
+  3. Files to Create
+
+  ┌───────────────────────────────────────────┬──────────────────────────────┐
+  │                   File                    │           Purpose            │
+  ├───────────────────────────────────────────┼──────────────────────────────┤
+  │                                           │ All TypeScript types for the │
+  │ src/types/graph.ts                        │  domain and React Flow       │
+  │                                           │ shapes                       │
+  ├───────────────────────────────────────────┼──────────────────────────────┤
+  │ src/lib/transformGraph.ts                 │ Transform raw JSON →         │
+  │                                           │ positioned Node[] + Edge[]   │
+  ├───────────────────────────────────────────┼──────────────────────────────┤
+  │ src/hooks/useGraphData.ts                 │ Load the JSON and return     │
+  │                                           │ memoised RF nodes/edges      │
+  ├───────────────────────────────────────────┼──────────────────────────────┤
+  │                                           │ <ReactFlow> canvas with      │
+  │ src/components/GraphCanvas.tsx            │ controls, minimap, custom    │
+  │                                           │ node types                   │
+  ├───────────────────────────────────────────┼──────────────────────────────┤
+  │ src/components/nodes/ActivityFlowNode.tsx │ Custom node component for    │
+  │                                           │ activities                   │
+  ├───────────────────────────────────────────┼──────────────────────────────┤
+  │ src/components/nodes/ResourceFlowNode.tsx │ Custom node component for    │
+  │                                           │ resources                    │
+  ├───────────────────────────────────────────┼──────────────────────────────┤
+  │ src/components/DetailPanel.tsx            │ Side panel for selected node │
+  │                                           │  metadata                    │
+  ├───────────────────────────────────────────┼──────────────────────────────┤
+  │ src/components/Legend.tsx                 │ Visual legend for colours    │
+  │                                           │ and shapes                   │
+  ├───────────────────────────────────────────┼──────────────────────────────┤
+  │ src/App.tsx                               │ Update existing stub to      │
+  │                                           │ compose all components       │
+  └───────────────────────────────────────────┴──────────────────────────────┘
+
+  ---
+  4. Dataset Observations
+
+  #: 1
+  Observation: Two node types: activity (8 nodes) and resource (15 nodes)
+  Implication: Need two distinct custom node renderers
+  ────────────────────────────────────────
+  #: 2
+  Observation: Activity fields: id, type, name, rto_hours, priority, owner
+  Implication: Priority has 3 values: critical, high, medium
+  ────────────────────────────────────────
+  #: 3
+  Observation: Resource fields vary by resource_type: only third_party resources
+
+    have a vendor field; others don't
+  Implication: Types need optional vendor?: string
+  ────────────────────────────────────────
+  #: 4
+  Observation: 5 resource sub-types: technology, third_party, people, building,
+    equipment
+  Implication: Each warrants a distinct visual treatment
+  ────────────────────────────────────────
+  #: 5
+  Observation: One activity→activity edge (act-8 → act-6): IT Service Desk
+    depends on Employee Payroll
+  Implication: The graph is not strictly bipartite; the layout must handle
+    cross-type edges
+  ────────────────────────────────────────
+  #: 6
+  Observation: Several shared resources (res-1 Core Banking, res-10 Primary Data
+
+    Centre, res-12 Microsoft 365) are depended on by 3+ activities
+  Implication: These nodes will be highly connected — layout should avoid edge
+    clutter around them
+  ────────────────────────────────────────
+  #: 7
+  Observation: No cycles detected in the dependency graph
+  Implication: A left-to-right DAG layout (dagre) is appropriate
+  ────────────────────────────────────────
+  #: 8
+  Observation: No edge metadata (no weight, label, or type on edges)
+  Implication: Edges can be styled uniformly, differentiated only by the node
+    types they connect
+  ────────────────────────────────────────
+  #: 9
+  Observation: data/graph.json sits outside src/
+  Implication: Must be imported via a Vite ?url fetch, a /public copy, or a
+    direct JSON import with resolveJsonModule — need to pick one consistent
+    strategy
+
+✻ Sautéed for 48s
+
+❯ Good plan. Please simplify the folder structure to be feature-based and       
+appropriate for a small take-home assignment with one main screen.              
+                                                                                
+Use this structure:                                                             
+                                                                                
+src/                                                                            
+  app/                                                                          
+    App.tsx                                                                     
+  features/                                                                     
+    dependency-graph/                                                           
+      components/                                                               
+        GraphCanvas.tsx                                                         
+        DetailPanel.tsx                                                         
+        Legend.tsx                                                              
+        nodes/                                                                  
+          ActivityFlowNode.tsx                                                  
+          ResourceFlowNode.tsx                                                  
+      hooks/                                                                    
+        useGraphData.ts                                                         
+      lib/                                                                      
+        transformGraph.ts                                                       
+      types/                                                                    
+        graph.ts                                                                
+  index.css                                                                     
+  main.tsx                                                                      
+                                                                                
+Please proceed with Step 1 only:                                                
+- create the folders and files                                                  
+- define strict TypeScript types                                                
+- load the graph data                                                           
+- transform raw JSON into React Flow nodes and edges                            
+- detect SPOF resources                                                         
+- keep the implementation simple and production-readable                        
+- update SOLUTION.md with this step                                             
+                                                                                
+Before making changes, briefly confirm the structure and approach.              
+
+⏺ Confirmed approach:
+
+  - types/graph.ts — raw JSON shapes + React Flow node data types + AppNode
+  union; ActivityNodeData / ResourceNodeData both extend Record<string, unknown>
+   for React Flow compatibility
+  - lib/transformGraph.ts — pure function; type-predicate filtering, simple
+  2-column layout (activities left, resources right), SPOF = resource with
+  inboundEdgeCount >= 2
+  - hooks/useGraphData.ts — imports raw JSON, casts to RawGraph, calls
+  transformGraph, returns memoised result
+  - tsconfig.app.json — add resolveJsonModule: true for the JSON import
+  - Component files — minimal valid stubs (return null) so the folder structure
+  is complete but doesn't interfere with Step 1 scope
+
+⏺ Creating all files now. The types, lib, and hook are the core of Step 1;
+  components are stubs.
+
+⏺ Write(src/features/dependency-graph/types/graph.ts)
+  ⎿  Wrote 70 lines to src/features/dependency-graph/types/graph.ts
+     import type { Node } from '@xyflow/react';
+
+     // ── Raw JSON shapes 
+     ───────────────────────────────────────────────────────────
+
+     export type Priority = 'critical' | 'high' | 'medium';
+
+     export type ResourceType =
+       | 'technology'
+       | 'third_party'
+       | 'people'
+     … +60 lines (ctrl+o to expand)
+
+⏺ Write(src/features/dependency-graph/lib/transformGraph.ts)
+  ⎿  Wrote 87 lines to src/features/dependency-graph/lib/transformGraph.ts
+     import type { Edge } from '@xyflow/react';
+     import type {
+       RawGraph,
+       RawActivityNode,
+       RawResourceNode,
+       AppNode,
+       ActivityNodeData,
+       ResourceNodeData,
+     } from '../types/graph';
+
+     … +77 lines (ctrl+o to expand)
+
+⏺ Write(src/features/dependency-graph/hooks/useGraphData.ts)
+  ⎿  Wrote 8 lines to src/features/dependency-graph/hooks/useGraphData.ts
+     import { useMemo } from 'react';
+     import type { RawGraph } from '../types/graph';
+     import { transformGraph } from '../lib/transformGraph';
+     import rawGraph from '../../../../data/graph.json';
+
+     export function useGraphData() {
+       return useMemo(() => transformGraph(rawGraph as RawGraph), []);
+     }
+
+
+⏺ Now the component stubs and tsconfig update, in parallel:
+
+⏺ Write(src/features/dependency-graph/components/GraphCanvas.tsx)
+  ⎿  Wrote 4 lines to
+     src/features/dependency-graph/components/GraphCanvas.tsx
+     // Step 2: implement graph canvas with React Flow
+     export function GraphCanvas() {
+       return null;
+     }
+
+
+⏺ Write(src/features/dependency-graph/components/DetailPanel.tsx)
+  ⎿  Wrote 4 lines to
+     src/features/dependency-graph/components/DetailPanel.tsx
+     // Step 2: implement selected-node detail panel
+     export function DetailPanel() {
+       return null;
+     }
+
+
+⏺ Write(src/features/dependency-graph/components/Legend.tsx)
+  ⎿  Wrote 4 lines to src/features/dependency-graph/components/Legend.tsx
+     // Step 2: implement colour/shape legend
+     export function Legend() {
+       return null;
+     }
+
+
+⏺ Write(src/features/dependency-graph/components/nodes/ActivityFlowNode.tsx)
+  ⎿  Wrote 4 lines to
+     src/features/dependency-graph/components/nodes/ActivityFlowNode.tsx
+     // Step 2: implement custom activity node renderer
+     export function ActivityFlowNode() {
+       return null;
+     }
+
+
+⏺ Write(src/features/dependency-graph/components/nodes/ResourceFlowNode.tsx)
+  ⎿  Wrote 4 lines to
+     src/features/dependency-graph/components/nodes/ResourceFlowNode.tsx
+     // Step 2: implement custom resource node renderer
+     export function ResourceFlowNode() {
+       return null;
+     }
+
+
+⏺ Update(tsconfig.app.json)
+  ⎿  Added 1 line
+       7      "module": "ESNext",                                        
+       8      "types": ["vite/client"],                                  
+       9      "skipLibCheck": true,                                      
+      10 +    "resolveJsonModule": true,                                 
+      11                                                                 
+      12      /* Bundler mode */                                         
+      13      "moduleResolution": "bundler",                             
+
+⏺ Now update SOLUTION.md:
+
+⏺ Update(SOLUTION.md)
+  ⎿  Added 66 lines
+      13  - Preserved the provided dataset at `data/graph.json`          
+      14  - Cleaned the default Vite starter files                       
+      15                                                                 
+      16 +## Step 1 — Data layer                                         
+      17 +                                                               
+      18 +### Folder structure                                           
+      19 +                                                               
+      20 +Feature-based layout under `src/features/dependency-graph/`:   
+      21 +                                                               
+      22 +```                                                            
+      23 +src/                                                           
+      24 +  app/                                                         
+      25 +    App.tsx                                                    
+      26 +  features/                                                    
+      27 +    dependency-graph/                                          
+      28 +      components/                                              
+      29 +        GraphCanvas.tsx       (stub — Step 2)                  
+      30 +        DetailPanel.tsx       (stub — Step 2)                  
+      31 +        Legend.tsx            (stub — Step 2)                  
+      32 +        nodes/                                                 
+      33 +          ActivityFlowNode.tsx  (stub — Step 2)                
+      34 +          ResourceFlowNode.tsx  (stub — Step 2)                
+      35 +      hooks/                                                   
+      36 +        useGraphData.ts       loads + memoises transformed     
+         +graph data                                                     
+      37 +      lib/                                                     
+      38 +        transformGraph.ts     raw JSON → React Flow nodes +    
+         +edges                                                          
+      39 +      types/                                                   
+      40 +        graph.ts              all TypeScript domain and React  
+         +Flow types                                                     
+      41 +  index.css                                                    
+      42 +  main.tsx                                                     
+      43 +```                                                            
+      44 +                                                               
+      45 +### TypeScript types (`types/graph.ts`)                        
+      46 +                                                               
+      47 +- **Raw shapes** — `RawActivityNode`, `RawResourceNode`,       
+         +`RawNode`, `RawDependency`, `RawGraph` mirror the JSON exactly 
+      48 +- **String literal unions** — `Priority` (`critical | high |   
+         +medium`) and `ResourceType` (`technology | third_party |       
+         +people | building | equipment`)                                
+      49 +- **React Flow data** — `ActivityNodeData` and                 
+         +`ResourceNodeData` both extend `Record<string, unknown>` as    
+         +required by `@xyflow/react`                                    
+      50 +- **Node union** — `AppNode = ActivityFlowNode |               
+         +ResourceFlowNode` typed with React Flow's `Node<TData, TType>` 
+         + generic                                                       
+      51 +                                                               
+      52 +### Transform (`lib/transformGraph.ts`)                        
+      53 +                                                               
+      54 +- Type-predicate filtering separates activities from resources 
+         + before mapping                                                
+      55 +- Simple 2-column layout: activities at `x=100`, resources at  
+         +`x=560`, both spaced vertically                                
+      56 +- SPOF detection: counts inbound edges per node; a resource is 
+         + flagged `isSPOF: true` when `dependencyCount >= 2`            
+      57 +- Edges carry a stable deterministic `id`                      
+         +(`e{index}-{from}-{to}`)                                       
+      58 +                                                               
+      59 +### SPOF analysis                                              
+      60 +                                                               
+      61 +With threshold ≥ 2 inbound dependencies, 10 of 15 resources    
+         +are flagged as SPOFs:                                          
+      62 +                                                               
+      63 +| Resource | Depended on by |                                  
+      64 +|---|---|                                                      
+      65 +| res-1 Core Banking System | act-1, act-2, act-5 |            
+      66 +| res-3 Data Warehouse | act-3, act-5 |                        
+      67 +| res-4 Salesforce CRM | act-2, act-4 |                        
+      68 +| res-5 VPN & Network Access | act-4, act-8 |                  
+      69 +| res-6 Finance Team | act-1, act-6 |                          
+      70 +| res-7 IT Infrastructure Team | act-7, act-8 |                
+      71 +| res-9 HQ Office | act-6, act-8 |                             
+      72 +| res-10 Primary Data Centre | act-1, act-3, act-7 |           
+      73 +| res-11 AWS Cloud Infrastructure | act-6, act-7 |             
+      74 +| res-12 Microsoft 365 | act-2, act-4, act-5, act-8 |          
+      75 +                                                               
+      76 +### Config change                                              
+      77 +                                                               
+      78 +Added `"resolveJsonModule": true` to `tsconfig.app.json` to    
+         +enable typed JSON imports from `data/graph.json`.              
+      79 +                                                               
+      80 +---                                                            
+      81 +                                                               
+      82  ## Observations about dataset                                  
+      83                                                                 
+      84  While inspecting the dataset, I noticed that most dependencies 
+           follow the expected pattern:                                  
+
+⏺ Let me do a quick sanity check on the tsconfig and the hook's import path:
+
+⏺ Read 2 files (ctrl+o to expand)
+
+⏺ Everything looks correct. Here's a summary of what was done:
+
+  ---
+  Step 1 complete
+
+  Files created:
+
+  ┌───────────────────────┬──────────────────────────────────────────────────┐
+  │         File          │                   What it does                   │
+  ├───────────────────────┼──────────────────────────────────────────────────┤
+  │                       │ Raw JSON types + Priority/ResourceType unions +  │
+  │ types/graph.ts        │ ActivityNodeData/ResourceNodeData (both extend   │
+  │                       │ Record<string,unknown>) + AppNode union          │
+  ├───────────────────────┼──────────────────────────────────────────────────┤
+  │                       │ Pure function: type-predicate filtering,         │
+  │ lib/transformGraph.ts │ 2-column layout, SPOF detection, edge ID         │
+  │                       │ generation                                       │
+  ├───────────────────────┼──────────────────────────────────────────────────┤
+  │ hooks/useGraphData.ts │ Imports raw JSON, casts to RawGraph, returns     │
+  │                       │ useMemo-wrapped transform result                 │
+  ├───────────────────────┼──────────────────────────────────────────────────┤
+  │ 5 component stubs     │ Minimal return null placeholders —               │
+  │                       │ TypeScript-clean, no unused imports              │
+  └───────────────────────┴──────────────────────────────────────────────────┘
+
+  Files modified:
+
+  - tsconfig.app.json — added resolveJsonModule: true
+  - SOLUTION.md — documented Step 1 decisions, folder structure, SPOF analysis
+  table
+
+  Key design decisions:
+  - transformGraph is a pure function (easy to test, no side effects)
+  - SPOF threshold is 2 — documented with a JSDoc comment explaining the
+  rationale
+  - JSON import uses a type cast (as RawGraph) rather than runtime validation —
+  appropriate for a static dataset in a take-home
+  - The act-8 → act-6 activity-to-activity edge is handled transparently —
+  buildInboundCounts counts all inbound edges regardless of source node type
+
+✻ Worked for 3m 39s
+
+❯ Proceed with Step 2.                                                          
+                                                                                
+Requirements:                                                                   
+- implement the actual React Flow canvas now                                    
+- use the transformed nodes and edges from Step 1                               
+- keep the layout simple and readable                                           
+- do not add unnecessary complexity                                             
+- register the custom activity and resource node components                     
+- show built-in controls and fitView                                            
+- make App.tsx render the graph canvas                                          
+- keep the detail panel and legend minimal for now if needed                    
+- update SOLUTION.md with this step                                             
+                                                                                
+Important:                                                                      
+- prefer a simple static/tiered layout over adding dagre unless it is truly     
+necessary                                                                       
+- keep this take-home implementation practical and lightweight                  
+
+⏺ Let me read the current stub files before editing them.
+
+⏺ Read 6 files (ctrl+o to expand)
+
+⏺ Now I have everything. Writing all 5 files at once — node components, canvas,
+  app shell. DetailPanel and Legend stay minimal stubs for this step.
+
+⏺ Write(src/features/dependency-graph/components/nodes/ActivityFlowNode.tsx)
+  ⎿  Added 33 lines, removed 3 lines
+       1 -// Step 2: implement custom activity node renderer             
+       2 -export function ActivityFlowNode() {                           
+       3 -  return null;                                                 
+       1 +import { Handle, Position } from '@xyflow/react';              
+       2 +import type { NodeProps } from '@xyflow/react';                
+       3 +import type { ActivityFlowNode as ActivityFlowNodeType,        
+         +Priority } from '../../types/graph';                           
+       4 +                                                               
+       5 +const PRIORITY_STYLES: Record<Priority, { border: string;      
+         +badge: string; label: string }> = {                            
+       6 +  critical: { border: 'border-l-red-500',    badge:            
+         +'bg-red-100 text-red-700',    label: 'Critical' },             
+       7 +  high:     { border: 'border-l-orange-500', badge:            
+         +'bg-orange-100 text-orange-700', label: 'High' },              
+       8 +  medium:   { border: 'border-l-sky-500',    badge:            
+         +'bg-sky-100 text-sky-700',    label: 'Medium' },               
+       9 +};                                                             
+      10 +                                                               
+      11 +export function ActivityFlowNode({ data, selected }:           
+         +NodeProps<ActivityFlowNodeType>) {                             
+      12 +  const s = PRIORITY_STYLES[data.priority];                    
+      13 +  return (                                                     
+      14 +    <>                                                         
+      15 +      <Handle type="target" position={Position.Left} />        
+      16 +      <div                                                     
+      17 +        className={[                                           
+      18 +          'w-48 rounded bg-white border border-l-4 shadow-sm   
+         +px-3 py-2',                                                    
+      19 +          s.border,                                            
+      20 +          selected ? 'border-slate-400 ring-2 ring-slate-300'  
+         +: 'border-slate-200',                                          
+      21 +        ].join(' ')}                                           
+      22 +      >                                                        
+      23 +        <p className="text-xs font-semibold text-slate-800     
+         +leading-snug">{data.name}</p>                                  
+      24 +        <div className="mt-1.5 flex items-center gap-2">       
+      25 +          <span className={`rounded px-1.5 py-0.5 text-[10px]  
+         +font-semibold ${s.badge}`}>                                    
+      26 +            {s.label}                                          
+      27 +          </span>                                              
+      28 +          <span className="text-[10px] text-slate-500">RTO     
+         +{data.rto_hours}h</span>                                       
+      29 +        </div>                                                 
+      30 +      </div>                                                   
+      31 +      <Handle type="source" position={Position.Right} />       
+      32 +    </>                                                        
+      33 +  );                                                           
+      34  }                                                              
+
+⏺ Write(src/features/dependency-graph/components/nodes/ResourceFlowNode.tsx)
+  ⎿  Added 39 lines, removed 3 lines
+       1 -// Step 2: implement custom resource node renderer             
+       2 -export function ResourceFlowNode() {                           
+       3 -  return null;                                                 
+       1 +import { Handle, Position } from '@xyflow/react';              
+       2 +import type { NodeProps } from '@xyflow/react';                
+       3 +import type { ResourceFlowNode as ResourceFlowNodeType,        
+         +ResourceType } from '../../types/graph';                       
+       4 +                                                               
+       5 +const TYPE_STYLES: Record<ResourceType, { border: string;      
+         +badge: string; label: string }> = {                            
+       6 +  technology:  { border: 'border-l-blue-500',   badge:         
+         +'bg-blue-100 text-blue-700',     label: 'Technology' },        
+       7 +  third_party: { border: 'border-l-violet-500', badge:         
+         +'bg-violet-100 text-violet-700', label: 'Third Party' },       
+       8 +  people:      { border: 'border-l-emerald-500',badge:         
+         +'bg-emerald-100 text-emerald-700',label: 'People' },           
+       9 +  building:    { border: 'border-l-amber-500',  badge:         
+         +'bg-amber-100 text-amber-700',   label: 'Building' },          
+      10 +  equipment:   { border: 'border-l-slate-400',  badge:         
+         +'bg-slate-100 text-slate-600',   label: 'Equipment' },         
+      11 +};                                                             
+      12 +                                                               
+      13 +export function ResourceFlowNode({ data, selected }:           
+         +NodeProps<ResourceFlowNodeType>) {                             
+      14 +  const s = TYPE_STYLES[data.resource_type];                   
+      15 +  return (                                                     
+      16 +    <>                                                         
+      17 +      <Handle type="target" position={Position.Left} />        
+      18 +      <div                                                     
+      19 +        className={[                                           
+      20 +          'w-44 rounded bg-white border border-l-4 shadow-sm   
+         +px-3 py-2',                                                    
+      21 +          s.border,                                            
+      22 +          selected ? 'border-slate-400 ring-2 ring-slate-300'  
+         +: 'border-slate-200',                                          
+      23 +        ].join(' ')}                                           
+      24 +      >                                                        
+      25 +        <div className="flex items-start justify-between       
+         +gap-1">                                                        
+      26 +          <p className="text-xs font-semibold text-slate-800   
+         +leading-snug">{data.name}</p>                                  
+      27 +          {data.isSPOF && (                                    
+      28 +            <span className="shrink-0 rounded border           
+         +border-red-200 bg-red-50 px-1 py-0.5 text-[9px] font-bold      
+         +text-red-600">                                                 
+      29 +              SPOF                                             
+      30 +            </span>                                            
+      31 +          )}                                                   
+      32 +        </div>                                                 
+      33 +        <span className={`mt-1.5 inline-block rounded px-1.5   
+         +py-0.5 text-[10px] font-medium ${s.badge}`}>                   
+      34 +          {s.label}                                            
+      35 +        </span>                                                
+      36 +      </div>                                                   
+      37 +      <Handle type="source" position={Position.Right} />       
+      38 +    </>                                                        
+      39 +  );                                                           
+      40  }                                                              
+
+⏺ Write(src/features/dependency-graph/components/GraphCanvas.tsx)
+  ⎿  Added 59 lines, removed 2 lines
+       1 -// Step 2: implement graph canvas with React Flow              
+       1 +import '@xyflow/react/dist/style.css';                         
+       2 +import {                                                       
+       3 +  ReactFlow,                                                   
+       4 +  Controls,                                                    
+       5 +  MiniMap,                                                     
+       6 +  Background,                                                  
+       7 +  BackgroundVariant,                                           
+       8 +  MarkerType,                                                  
+       9 +  useNodesState,                                               
+      10 +  useEdgesState,                                               
+      11 +} from '@xyflow/react';                                        
+      12 +                                                               
+      13 +import { useGraphData } from '../hooks/useGraphData';          
+      14 +import { ActivityFlowNode } from './nodes/ActivityFlowNode';   
+      15 +import { ResourceFlowNode } from './nodes/ResourceFlowNode';   
+      16 +                                                               
+      17 +// Defined outside the component so the reference is stable    
+         +across renders,                                                
+      18 +// preventing React Flow from re-registering node types        
+         +unnecessarily.                                                 
+      19 +const nodeTypes = {                                            
+      20 +  activity: ActivityFlowNode,                                  
+      21 +  resource: ResourceFlowNode,                                  
+      22 +};                                                             
+      23 +                                                               
+      24 +const defaultEdgeOptions = {                                   
+      25 +  type: 'smoothstep',                                          
+      26 +  markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8'  
+         +},                                                             
+      27 +  style: { stroke: '#94a3b8', strokeWidth: 1.5 },              
+      28 +};                                                             
+      29 +                                                               
+      30 +const fitViewOptions = { padding: 0.2 };                       
+      31 +                                                               
+      32  export function GraphCanvas() {                                
+      33 -  return null;                                                 
+      33 +  const { nodes: initialNodes, edges: initialEdges } =         
+         +useGraphData();                                                
+      34 +  const [nodes, , onNodesChange] =                             
+         +useNodesState(initialNodes);                                   
+      35 +  const [edges, , onEdgesChange] =                             
+         +useEdgesState(initialEdges);                                   
+      36 +                                                               
+      37 +  return (                                                     
+      38 +    <div className="w-full h-full">                            
+      39 +      <ReactFlow                                               
+      40 +        nodes={nodes}                                          
+      41 +        edges={edges}                                          
+      42 +        onNodesChange={onNodesChange}                          
+      43 +        onEdgesChange={onEdgesChange}                          
+      44 +        nodeTypes={nodeTypes}                                  
+      45 +        defaultEdgeOptions={defaultEdgeOptions}                
+      46 +        fitView                                                
+      47 +        fitViewOptions={fitViewOptions}                        
+      48 +        minZoom={0.2}                                          
+      49 +        maxZoom={2}                                            
+      50 +      >                                                        
+      51 +        <Background variant={BackgroundVariant.Dots} gap={20}  
+         +color="#e2e8f0" />                                             
+      52 +        <Controls />                                           
+      53 +        <MiniMap                                               
+      54 +          nodeColor={(n) => (n.type === 'activity' ? '#bfdbfe' 
+         + : '#e2e8f0')}                                                 
+      55 +          pannable                                             
+      56 +          zoomable                                             
+      57 +        />                                                     
+      58 +      </ReactFlow>                                             
+      59 +    </div>                                                     
+      60 +  );                                                           
+      61  }                                                              
+
+⏺ Write(src/App.tsx)
+  ⎿  Added 11 lines, removed 10 lines
+       1 +import { GraphCanvas } from                                    
+         +'./features/dependency-graph/components/GraphCanvas';          
+       2 +                                                               
+       3  function App() {                                               
+       4    return (                                                     
+       5 -    <main className="min-h-screen bg-slate-50">                
+       6 -      <div className="mx-auto max-w-7xl px-6 py-10">           
+       7 -        <h1 className="text-2xl font-semibold text-slate-900"> 
+       8 -          Fortiv Dependency Graph                              
+       9 -        </h1>                                                  
+      10 -        <p className="mt-2 text-sm text-slate-600">            
+      11 -          Loading assignment setup...                          
+      12 -        </p>                                                   
+      13 -      </div>                                                   
+      14 -    </main>                                                    
+       5 +    <div className="flex h-screen flex-col bg-slate-50">       
+       6 +      <header className="shrink-0 border-b border-slate-200    
+         +bg-white px-6 py-3 shadow-sm">                                 
+       7 +        <h1 className="text-base font-semibold text-slate-900">
+         +Dependency Graph</h1>                                          
+       8 +        <p className="text-xs text-slate-500">Business         
+         +activities and their resource dependencies</p>                 
+       9 +      </header>                                                
+      10 +      <main className="min-h-0 flex-1">                        
+      11 +        <GraphCanvas />                                        
+      12 +      </main>                                                  
+      13 +    </div>                                                     
+      14    );                                                           
+      15  }                                                              
+      16                                                                 
+
+⏺ Now update SOLUTION.md with Step 2:
+
+⏺ Read 1 file (ctrl+o to expand)
+
+⏺ Update(SOLUTION.md)
+  ⎿  Added 45 lines
+       79                                                                
+       80  ---                                                           
+       81                                                                
+       82 +## Step 2 — React Flow canvas                                 
+       83 +                                                              
+       84 +### GraphCanvas (`components/GraphCanvas.tsx`)                
+       85 +                                                              
+       86 +- Calls `useGraphData()` to get the transformed nodes and     
+          +edges from Step 1                                             
+       87 +- Uses `useNodesState` / `useEdgesState` to allow node        
+          +dragging without re-deriving from source data                 
+       88 +- `nodeTypes` and `defaultEdgeOptions` are module-level       
+          +constants so React Flow never sees a new reference between    
+          +renders                                                       
+       89 +- `fitView` + `fitViewOptions` ensure the full graph is       
+          +visible on first load regardless of screen size               
+       90 +- Built-in React Flow `Controls` (zoom/pan buttons) and       
+          +`MiniMap` are included                                        
+       91 +- `Background` uses a dot grid for visual orientation         
+       92 +                                                              
+       93 +### Custom node components                                    
+       94 +                                                              
+       95 +**ActivityFlowNode** — coloured left border by priority:      
+       96 +- `critical` → red                                            
+       97 +- `high` → orange                                             
+       98 +- `medium` → sky blue                                         
+       99 +                                                              
+      100 +Shows activity name, priority badge, and RTO in hours.        
+      101 +                                                              
+      102 +**ResourceFlowNode** — coloured left border by resource type: 
+      103 +- `technology` → blue                                         
+      104 +- `third_party` → violet                                      
+      105 +- `people` → emerald                                          
+      106 +- `building` → amber                                          
+      107 +- `equipment` → slate                                         
+      108 +                                                              
+      109 +Shows resource name, type badge, and a red `SPOF` badge when  
+          +`isSPOF: true`.                                               
+      110 +                                                              
+      111 +Both components accept `selected` from `NodeProps` and apply  
+          +a subtle ring when selected (foundation for the detail panel  
+          +in Step 3).                                                   
+      112 +                                                              
+      113 +### Edge styling                                              
+      114 +                                                              
+      115 +`defaultEdgeOptions` applied at the canvas level:             
+      116 +- `smoothstep` routing for clean curved edges in the 2-column 
+          + layout                                                       
+      117 +- `ArrowClosed` marker end for clear direction                
+      118 +- Neutral slate colour to keep nodes visually dominant        
+      119 +                                                              
+      120 +### App shell (`App.tsx`)                                     
+      121 +                                                              
+      122 +- `h-screen flex flex-col` layout with a fixed header and     
+          +`flex-1 min-h-0` main area                                    
+      123 +- `min-h-0` prevents flex children from overflowing when the  
+          +canvas is taller than the viewport                            
+      124 +                                                              
+      125 +---                                                           
+      126 +                                                              
+      127  ## Observations about dataset                                 
+      128                                                                
+      129  While inspecting the dataset, I noticed that most             
+           dependencies follow the expected pattern:                     
+
+⏺ Done. Here's a summary of what was implemented:
+
+  ---
+  Step 2 complete
+
+  ActivityFlowNode — left border coloured by priority (red/orange/sky), shows
+  name + priority badge + RTO hours. Accepts selected for a ring highlight.
+
+  ResourceFlowNode — left border coloured by resource_type (5 colours), shows
+  name + type badge + a red SPOF badge when flagged from Step 1.
+
+  GraphCanvas — full ReactFlow canvas with:
+  - nodeTypes / defaultEdgeOptions / fitViewOptions as module-level constants
+  (stable references, no spurious re-renders)
+  - useNodesState / useEdgesState for drag support
+  - smoothstep + ArrowClosed edges via defaultEdgeOptions
+  - Controls, MiniMap, dot Background
+
+  App.tsx — h-screen flex flex-col shell; min-h-0 flex-1 on <main> so the canvas
+   fills the remaining viewport height correctly.
+
+  DetailPanel and Legend remain stubs — ready for Step 3.
+
+✻ Cogitated for 3m 39s
+
+❯ Proceed with Step 3.                                                          
+                                                                                
+Implement only the remaining core assignment requirements:                      
+                                                                                
+1. Node selection behavior                                                      
+- clicking a node highlights:                                                   
+  - the selected node                                                           
+  - directly connected edges                                                    
+  - directly connected neighbor nodes                                           
+- all unrelated nodes and edges should be visually de-emphasized                
+- clicking the selected node again clears selection                             
+- clicking the background clears selection                                      
+                                                                                
+2. Info panel                                                                   
+- when a node is selected, show a side panel with the node details from the     
+dataset                                                                         
+- for activities include at least: name, priority, owner, rto_hours             
+- for resources include at least: name, resource_type, contact, vendor if       
+present                                                                         
+- for resources also show whether it is a SPOF and the dependency count         
+                                                                                
+3. Keep the implementation simple                                               
+- do not add unnecessary abstractions                                           
+- keep the current layout and node components                                   
+- keep Legend minimal if it is not essential                                    
+- update SOLUTION.md with this step                                             
+                                                                                
+Important:                                                                      
+- this is a take-home assignment, so prefer a practical implementation over     
+overengineering                                                                 
+- do not implement filtering yet                                                
+- do not redesign the folder structure                                          
+
+⏺ Let me read the current GraphCanvas and App one more time so I have the latest
+   content before overwriting, then write everything.
+
+⏺ Read 2 files (ctrl+o to expand)
+
+⏺ Good. Now I'll write all three files at once.
+
+  Plan:
+  - useGraphData moves to App — it passes initialNodes/initialEdges as props to
+  GraphCanvas so App can also look up the selected node for the detail panel
+  without calling the hook twice
+  - Selection state (selectedNodeId) lives in App
+  - GraphCanvas gets a useEffect keyed on selectedNodeId that calls
+  setNodes/setEdges to apply className: 'opacity-30' on unrelated nodes and dim
+  edge styles; clearing selection resets everything
+  - DetailPanel is a pure display component — receives the AppNode directly from
+   App
+
+⏺ Write(src/App.tsx)
+  ⎿  Added 23 lines, removed 3 lines
+       1 +import { useState } from 'react';                              
+       2 +import { useGraphData } from                                   
+         +'./features/dependency-graph/hooks/useGraphData';              
+       3  import { GraphCanvas } from                                    
+          './features/dependency-graph/components/GraphCanvas';          
+       4 +import { DetailPanel } from                                    
+         +'./features/dependency-graph/components/DetailPanel';          
+       5                                                                 
+       6  function App() {                                               
+       7 +  const { nodes, edges } = useGraphData();                     
+       8 +  const [selectedNodeId, setSelectedNodeId] = useState<string  
+         +| null>(null);                                                 
+       9 +                                                               
+      10 +  const selectedNode = selectedNodeId                          
+      11 +    ? (nodes.find((n) => n.id === selectedNodeId) ?? null)     
+      12 +    : null;                                                    
+      13 +                                                               
+      14    return (                                                     
+      15      <div className="flex h-screen flex-col bg-slate-50">       
+      16        <header className="shrink-0 border-b border-slate-200    
+          bg-white px-6 py-3 shadow-sm">                                 
+      17          <h1 className="text-base font-semibold                 
+          text-slate-900">Dependency Graph</h1>                          
+      18          <p className="text-xs text-slate-500">Business         
+          activities and their resource dependencies</p>                 
+      19        </header>                                                
+      20 -      <main className="min-h-0 flex-1">                        
+      21 -        <GraphCanvas />                                        
+      22 -      </main>                                                  
+      20 +      <div className="flex min-h-0 flex-1">                    
+      21 +        <main className="min-h-0 flex-1">                      
+      22 +          <GraphCanvas                                         
+      23 +            initialNodes={nodes}                               
+      24 +            initialEdges={edges}                               
+      25 +            selectedNodeId={selectedNodeId}                    
+      26 +            onNodeSelect={setSelectedNodeId}                   
+      27 +          />                                                   
+      28 +        </main>                                                
+      29 +        {selectedNode && (                                     
+      30 +          <DetailPanel node={selectedNode} onClose={() =>      
+         +setSelectedNodeId(null)} />                                    
+      31 +        )}                                                     
+      32 +      </div>                                                   
+      33      </div>                                                     
+      34    );                                                           
+      35  }                                                              
+
+⏺ Write(src/features/dependency-graph/components/GraphCanvas.tsx)
+  ⎿  Added 77 lines, removed 9 lines
+      1  import '@xyflow/react/dist/style.css';                          
+      2 +import { useCallback, useEffect } from 'react';                 
+      3  import {                                                        
+      4    ReactFlow,                                                    
+      5    Controls,                                                     
+     ...
+        9    useNodesState,                                              
+       10    useEdgesState,                                              
+       11  } from '@xyflow/react';                                       
+       12 +import type { Edge, Node } from '@xyflow/react';              
+       13 +import type { MouseEvent } from 'react';                      
+       14                                                                
+       15 -import { useGraphData } from '../hooks/useGraphData';         
+       15  import { ActivityFlowNode } from './nodes/ActivityFlowNode';  
+       16  import { ResourceFlowNode } from './nodes/ResourceFlowNode';  
+       17 +import type { AppNode } from '../types/graph';                
+       18                                                                
+       19 -// Defined outside the component so the reference is stable   
+          -across renders,                                               
+       20 -// preventing React Flow from re-registering node types       
+          -unnecessarily.                                                
+       19 +// Stable module-level constants so React Flow never sees new 
+          + references between renders.                                  
+       20  const nodeTypes = {                                           
+       21    activity: ActivityFlowNode,                                 
+       22    resource: ResourceFlowNode,                                 
+       23  };                                                            
+       24                                                                
+       25 +const defaultEdgeStyle = { stroke: '#94a3b8', strokeWidth:    
+          +1.5 };                                                        
+       26 +const defaultMarkerEnd = { type: MarkerType.ArrowClosed,      
+          +color: '#94a3b8' };                                           
+       27 +                                                              
+       28  const defaultEdgeOptions = {                                  
+       29    type: 'smoothstep',                                         
+       30 -  markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8' 
+          - },                                                           
+       31 -  style: { stroke: '#94a3b8', strokeWidth: 1.5 },             
+       30 +  style: defaultEdgeStyle,                                    
+       31 +  markerEnd: defaultMarkerEnd,                                
+       32  };                                                            
+       33                                                                
+       34  const fitViewOptions = { padding: 0.2 };                      
+       35                                                                
+       36 -export function GraphCanvas() {                               
+       37 -  const { nodes: initialNodes, edges: initialEdges } =        
+          -useGraphData();                                               
+       38 -  const [nodes, , onNodesChange] =                            
+          -useNodesState(initialNodes);                                  
+       39 -  const [edges, , onEdgesChange] =                            
+          -useEdgesState(initialEdges);                                  
+       36 +interface Props {                                             
+       37 +  initialNodes: AppNode[];                                    
+       38 +  initialEdges: Edge[];                                       
+       39 +  selectedNodeId: string | null;                              
+       40 +  onNodeSelect: (id: string | null) => void;                  
+       41 +}                                                             
+       42                                                                
+       43 +export function GraphCanvas({ initialNodes, initialEdges,     
+          +selectedNodeId, onNodeSelect }: Props) {                      
+       44 +  const [nodes, setNodes, onNodesChange] =                    
+          +useNodesState(initialNodes);                                  
+       45 +  const [edges, setEdges, onEdgesChange] =                    
+          +useEdgesState(initialEdges);                                  
+       46 +                                                              
+       47 +  // Recompute highlight/dim state whenever the selected node 
+          + changes.                                                     
+       48 +  useEffect(() => {                                           
+       49 +    if (!selectedNodeId) {                                    
+       50 +      setNodes((nds) => nds.map((n) => ({ ...n, selected:     
+          +false, className: '' })));                                    
+       51 +      setEdges((eds) =>                                       
+       52 +        eds.map((e) => ({ ...e, style: defaultEdgeStyle,      
+          +markerEnd: defaultMarkerEnd })),                              
+       53 +      );                                                      
+       54 +      return;                                                 
+       55 +    }                                                         
+       56 +                                                              
+       57 +    const connectedEdgeIds = new Set<string>();               
+       58 +    const highlightedNodeIds = new                            
+          +Set<string>([selectedNodeId]);                                
+       59 +                                                              
+       60 +    for (const e of initialEdges) {                           
+       61 +      if (e.source === selectedNodeId || e.target ===         
+          +selectedNodeId) {                                             
+       62 +        connectedEdgeIds.add(e.id);                           
+       63 +        highlightedNodeIds.add(e.source);                     
+       64 +        highlightedNodeIds.add(e.target);                     
+       65 +      }                                                       
+       66 +    }                                                         
+       67 +                                                              
+       68 +    setNodes((nds) =>                                         
+       69 +      nds.map((n) => ({                                       
+       70 +        ...n,                                                 
+       71 +        selected: n.id === selectedNodeId,                    
+       72 +        className: highlightedNodeIds.has(n.id) ? '' :        
+          +'opacity-30',                                                 
+       73 +      })),                                                    
+       74 +    );                                                        
+       75 +                                                              
+       76 +    setEdges((eds) =>                                         
+       77 +      eds.map((e) => ({                                       
+       78 +        ...e,                                                 
+       79 +        style: connectedEdgeIds.has(e.id)                     
+       80 +          ? { stroke: '#475569', strokeWidth: 2 }             
+       81 +          : { stroke: '#cbd5e1', strokeWidth: 1, opacity:     
+          +0.25 },                                                       
+       82 +        markerEnd: {                                          
+       83 +          type: MarkerType.ArrowClosed,                       
+       84 +          color: connectedEdgeIds.has(e.id) ? '#475569' :     
+          +'#cbd5e1',                                                    
+       85 +        },                                                    
+       86 +      })),                                                    
+       87 +    );                                                        
+       88 +  }, [selectedNodeId, initialEdges, setNodes, setEdges]);     
+       89 +                                                              
+       90 +  const handleNodeClick = useCallback(                        
+       91 +    (_: MouseEvent, node: Node) => {                          
+       92 +      // Clicking the already-selected node toggles it off.   
+       93 +      onNodeSelect(node.id === selectedNodeId ? null :        
+          +node.id);                                                     
+       94 +    },                                                        
+       95 +    [selectedNodeId, onNodeSelect],                           
+       96 +  );                                                          
+       97 +                                                              
+       98 +  const handlePaneClick = useCallback(() => {                 
+       99 +    onNodeSelect(null);                                       
+      100 +  }, [onNodeSelect]);                                         
+      101 +                                                              
+      102    return (                                                    
+      103      <div className="w-full h-full">                           
+      104        <ReactFlow                                              
+     ...
+      43          onEdgesChange={onEdgesChange}                          
+      44          nodeTypes={nodeTypes}                                  
+      45          defaultEdgeOptions={defaultEdgeOptions}                
+      46 +        onNodeClick={handleNodeClick}                          
+      47 +        onPaneClick={handlePaneClick}                          
+      48          fitView                                                
+      49          fitViewOptions={fitViewOptions}                        
+      50          minZoom={0.2}                                          
+
+⏺ Write(src/features/dependency-graph/components/DetailPanel.tsx)
+  ⎿  Added 91 lines, removed 3 lines
+       1 -// Step 2: implement selected-node detail panel                
+       2 -export function DetailPanel() {                                
+       3 -  return null;                                                 
+       1 +import type { ReactNode } from 'react';                        
+       2 +import type { AppNode, Priority, ResourceType } from           
+         +'../types/graph';                                              
+       3 +                                                               
+       4 +const PRIORITY_BADGE: Record<Priority, string> = {             
+       5 +  critical: 'bg-red-100 text-red-700',                         
+       6 +  high: 'bg-orange-100 text-orange-700',                       
+       7 +  medium: 'bg-sky-100 text-sky-700',                           
+       8 +};                                                             
+       9 +                                                               
+      10 +const RESOURCE_TYPE_LABEL: Record<ResourceType, string> = {    
+      11 +  technology: 'Technology',                                    
+      12 +  third_party: 'Third Party',                                  
+      13 +  people: 'People',                                            
+      14 +  building: 'Building',                                        
+      15 +  equipment: 'Equipment',                                      
+      16 +};                                                             
+      17 +                                                               
+      18 +function Row({ label, children }: { label: string; children:   
+         +ReactNode }) {                                                 
+      19 +  return (                                                     
+      20 +    <div>                                                      
+      21 +      <p className="text-[10px] font-semibold uppercase        
+         +tracking-wide text-slate-400">{label}</p>                      
+      22 +      <div className="mt-0.5 text-sm                           
+         +text-slate-800">{children}</div>                               
+      23 +    </div>                                                     
+      24 +  );                                                           
+      25  }                                                              
+      26 +                                                               
+      27 +interface Props {                                              
+      28 +  node: AppNode;                                               
+      29 +  onClose: () => void;                                         
+      30 +}                                                              
+      31 +                                                               
+      32 +export function DetailPanel({ node, onClose }: Props) {        
+      33 +  const { data } = node;                                       
+      34 +                                                               
+      35 +  return (                                                     
+      36 +    <aside className="flex w-72 shrink-0 flex-col border-l     
+         +border-slate-200 bg-white">                                    
+      37 +      <div className="flex items-center justify-between        
+         +border-b border-slate-100 px-4 py-3">                          
+      38 +        <span className="text-xs font-semibold uppercase       
+         +tracking-wide text-slate-500">                                 
+      39 +          {data.kind === 'activity' ? 'Activity' : 'Resource'} 
+      40 +        </span>                                                
+      41 +        <button                                                
+      42 +          onClick={onClose}                                    
+      43 +          className="rounded p-1 text-slate-400                
+         +hover:bg-slate-100 hover:text-slate-700"                       
+      44 +          aria-label="Close panel"                             
+      45 +        >                                                      
+      46 +          ✕                                                    
+      47 +        </button>                                              
+      48 +      </div>                                                   
+      49 +                                                               
+      50 +      <div className="flex-1 overflow-y-auto px-4 py-4">       
+      51 +        <h2 className="text-sm font-semibold                   
+         +text-slate-900">{data.name}</h2>                               
+      52 +                                                               
+      53 +        <dl className="mt-4 space-y-4">                        
+      54 +          {data.kind === 'activity' ? (                        
+      55 +            <>                                                 
+      56 +              <Row label="Priority">                           
+      57 +                <span                                          
+      58 +                  className={`inline-block rounded px-2 py-0.5 
+         + text-xs font-semibold capitalize                              
+         +${PRIORITY_BADGE[data.priority]}`}                             
+      59 +                >                                              
+      60 +                  {data.priority}                              
+      61 +                </span>                                        
+      62 +              </Row>                                           
+      63 +              <Row label="Owner">{data.owner}</Row>            
+      64 +              <Row label="Recovery Time Objective">            
+      65 +                {data.rto_hours} {data.rto_hours === 1 ?       
+         +'hour' : 'hours'}                                              
+      66 +              </Row>                                           
+      67 +            </>                                                
+      68 +          ) : (                                                
+      69 +            <>                                                 
+      70 +              <Row label="Resource                             
+         +Type">{RESOURCE_TYPE_LABEL[data.resource_type]}</Row>          
+      71 +              <Row label="Contact">{data.contact}</Row>        
+      72 +              {data.vendor !== undefined && <Row               
+         +label="Vendor">{data.vendor}</Row>}                            
+      73 +              <Row label="Single Point of Failure">            
+      74 +                {data.isSPOF ? (                               
+      75 +                  <span className="flex items-center gap-1.5"> 
+      76 +                    <span className="inline-block h-2 w-2      
+         +rounded-full bg-red-500" />                                    
+      77 +                    <span className="font-medium               
+         +text-red-700">                                                 
+      78 +                      Yes &mdash; {data.dependencyCount}       
+         +dependent{' '}                                                 
+      79 +                      {data.dependencyCount === 1 ? 'node' :   
+         +'nodes'}                                                       
+      80 +                    </span>                                    
+      81 +                  </span>                                      
+      82 +                ) : (                                          
+      83 +                  <span className="text-slate-500">No</span>   
+      84 +                )}                                             
+      85 +              </Row>                                           
+      86 +            </>                                                
+      87 +          )}                                                   
+      88 +        </dl>                                                  
+      89 +      </div>                                                   
+      90 +    </aside>                                                   
+      91 +  );                                                           
+      92 +}                                                              
+
+⏺ Now update SOLUTION.md:
+
+⏺ Update(SOLUTION.md)
+  ⎿  Added 31 lines
+      124                                                                
+      125  ---                                                           
+      126                                                                
+      127 +## Step 3 — Node selection and detail panel                   
+      128 +                                                              
+      129 +### State architecture                                        
+      130 +                                                              
+      131 +`selectedNodeId: string | null` lives in `App.tsx`. This lets 
+          + `App` look up the selected `AppNode` from the                
+          +`useGraphData()` result and pass it to `DetailPanel` without  
+          +calling the hook twice.                                       
+      132 +                                                              
+      133 +`useGraphData()` also moved to `App.tsx`. The resolved        
+          +`nodes` and `edges` are passed as `initialNodes` /            
+          +`initialEdges` props to `GraphCanvas`.                        
+      134 +                                                              
+      135 +### Selection behaviour (`GraphCanvas`)                       
+      136 +                                                              
+      137 +A `useEffect` keyed on `[selectedNodeId, initialEdges]`       
+          +recomputes the visual state on every selection change:        
+      138 +                                                              
+      139 +- Walks `initialEdges` once to build `connectedEdgeIds` and   
+          +`highlightedNodeIds` (selected node + its direct neighbors)   
+      140 +- Calls `setNodes` to apply `className: 'opacity-30'` to      
+          +every node **not** in `highlightedNodeIds`, and `selected:    
+          +true` on the selected node (drives the ring in the custom     
+          +components)                                                   
+      141 +- Calls `setEdges` to apply a bold slate style to connected   
+          +edges and a faded style to unrelated ones                     
+      142 +- When `selectedNodeId` is `null`, resets all `className`     
+          +values and edge styles to defaults                            
+      143 +                                                              
+      144 +`onNodeClick` toggles selection: clicking the                 
+          +already-selected node calls `onNodeSelect(null)`.             
+      145 +`onPaneClick` always clears selection.                        
+      146 +                                                              
+      147 +### Detail panel (`DetailPanel.tsx`)                          
+      148 +                                                              
+      149 +Renders in a `w-72` aside to the right of the canvas, only    
+          +when `selectedNode` is non-null.                              
+      150 +                                                              
+      151 +**Activity fields:** priority (coloured badge), owner,        
+          +recovery time objective                                       
+      152 +**Resource fields:** resource type, contact, vendor (only if  
+          +present), SPOF status with dependent node count               
+      153 +                                                              
+      154 +The `Row` helper is a local function — no abstraction file    
+          +needed for a single use.                                      
+      155 +                                                              
+      156 +---                                                           
+      157 +                                                              
+      158  ## Observations about dataset                                 
+      159                                                                
+      160  While inspecting the dataset, I noticed that most             
+           dependencies follow the expected pattern:                     
+
+⏺ Done. Here's a summary of what changed:
+
+  ---
+  Step 3 complete
+
+  App.tsx
+  - useGraphData() moved here; selectedNodeId state lives here
+  - Looks up selectedNode: AppNode | null for the detail panel with a simple
+  .find()
+  - Renders <DetailPanel> conditionally to the right of the canvas
+
+  GraphCanvas.tsx
+  - New props: initialNodes, initialEdges, selectedNodeId, onNodeSelect
+  - useEffect([selectedNodeId, initialEdges, setNodes, setEdges]) — single pass
+  over initialEdges builds the two sets, then calls setNodes/setEdges to apply
+  opacity/style changes
+  - handleNodeClick toggles: node.id === selectedNodeId ? null : node.id
+  - handlePaneClick clears
+  - defaultEdgeStyle and defaultMarkerEnd are module-level constants so the
+  reset case in the effect doesn't create new object references
+
+  DetailPanel.tsx
+  - Row is a local helper function — no shared file needed
+  - Activity: priority badge (coloured), owner, RTO with correct singular/plural
+  - Resource: type label, contact, vendor (only rendered if not undefined), SPOF
+   with dot indicator and dependent node count
+
+✻ Cooked for 5m 45s
+
+❯ One issue: the React Flow node handles currently allow dragging to create new 
+ connections between nodes.                                                     
+                                                                                
+This assignment is a dependency graph viewer, not an editor.                    
+                                                                                
+Please make the graph read-only:                                                
+- disable creating new edges by dragging from handles                           
+- keep existing dependency edges visible                                        
+- if appropriate, make handles non-connectable or visually unobtrusive          
+- do not add editing behavior                                                   
+- keep the implementation simple                                                
+- update SOLUTION.md with this small adjustment                                 
+
+⏺ Two focused changes: nodesConnectable={false} on the ReactFlow component, and
+  hide handles visually in CSS (they stay in the DOM so edge anchoring is
+  unaffected).
+
+⏺ Read 1 file (ctrl+o to expand)
+
+⏺ Update(src/features/dependency-graph/components/GraphCanvas.tsx)
+  ⎿  Added 1 line
+      111          defaultEdgeOptions={defaultEdgeOptions}               
+      112          onNodeClick={handleNodeClick}                         
+      113          onPaneClick={handlePaneClick}                         
+      114 +        nodesConnectable={false}                              
+      115          fitView                                               
+      116          fitViewOptions={fitViewOptions}                       
+      117          minZoom={0.2}                                         
+
+⏺ Update(src/index.css)
+  ⎿  Added 9 lines, removed 1 line
+       1 -@import "tailwindcss";                                         
+       1   No newline at end of file                                     
+       2 +@import "tailwindcss";                                         
+       3 +                                                               
+       4 +/* Handles exist in the DOM to anchor edge endpoints but serve 
+         + no purpose                                                    
+       5 +   in a read-only viewer, so hide them without removing them   
+         +from layout. */                                                
+       6 +.react-flow__handle {                                          
+       7 +  opacity: 0;                                                  
+       8 +  pointer-events: none;                                        
+       9 +  cursor: default;                                             
+      10 +}                                                              
+      11   No newline at end of file                                     
+
+⏺ Now update SOLUTION.md:
+
+⏺ Update(SOLUTION.md)
+  ⎿  Added 9 lines
+      155                                                                
+      156  ---                                                           
+      157                                                                
+      158 +## Read-only graph                                            
+      159 +                                                              
+      160 +Two changes to prevent connection editing:                    
+      161 +                                                              
+      162 +- `nodesConnectable={false}` on `ReactFlow` — the canonical   
+          +React Flow flag that disables all handle drag-to-connect      
+          +behaviour                                                     
+      163 +- `.react-flow__handle { opacity: 0; pointer-events: none; }` 
+          + in `index.css` — hides handle dots visually while keeping    
+          +them in the DOM at their natural positions, so existing edge  
+          +endpoints remain correctly anchored                           
+      164 +                                                              
+      165 +---                                                           
+      166 +                                                              
+      167  ## Observations about dataset                                 
+      168                                                                
+      169  While inspecting the dataset, I noticed that most             
+           dependencies follow the expected pattern:                     
+
+⏺ Two changes, nothing else touched:
+
+  - GraphCanvas.tsx — nodesConnectable={false} added to <ReactFlow>. This is
+  React Flow's built-in flag for read-only graphs; it disables handle
+  interaction at the framework level.
+  - index.css — .react-flow__handle { opacity: 0; pointer-events: none; cursor: 
+  default; } hides the visual dots. Using opacity: 0 rather than display: none
+  keeps the elements in the DOM at their natural positions, which is important —
+   React Flow reads handle coordinates from the DOM to compute where edge lines
+  start and end.
+
+✻ Baked for 57s
+
+❯ Proceed with the final step.                                                  
+                                                                                
+Implement the remaining assignment requirements:                                
+                                                                                
+1. Reload data                                                                  
+- add a simple "Reload graph" button in the header                              
+- re-run the graph transformation so nodes re-render                            
+                                                                                
+2. Activity ordering option                                                     
+- add a toggle: "Order activities by criticality"                               
+- when enabled, activities should be sorted by priority                         
+                                                                                
+3. Resource ordering option                                                     
+- add a toggle for ordering resources                                           
+- keep the implementation simple and practical for this dataset                 
+                                                                                
+Requirements:                                                                   
+- keep UI minimal (Tailwind buttons or toggles are fine)                        
+- do not redesign the existing components                                       
+- avoid unnecessary abstractions                                                
+- keep the implementation simple and production-readable                        
+- update SOLUTION.md with this final step                                       
+
+⏺ Let me read the files I'll be changing.
+
+⏺ Read 3 files (ctrl+o to expand)
+
+⏺ Clear plan:
+  - transformGraph.ts — add optional sort, keeping filter() result arrays (safe
+  to .sort() in-place)
+  - useGraphData.ts — add three params; all three in the useMemo deps so any
+  change re-derives the graph
+  - App.tsx — add state for version, sortActivities, sortResources; compute a
+  graphKey string from all three and pass it as key to GraphCanvas so it
+  remounts (and fitView re-runs) whenever the graph structure changes; add
+  header controls
+
+⏺ Write(src/features/dependency-graph/lib/transformGraph.ts)
+  ⎿  Added 27 lines, removed 1 line
+       6    AppNode,                                                     
+       7    ActivityNodeData,                                            
+       8    ResourceNodeData,                                            
+       9 +  Priority,                                                    
+      10  } from '../types/graph';                                       
+      11                                                                 
+      12  // ── Layout constants                                         
+          ──────────────────────────────────────────────────────────     
+     ...
+      25   */                                                            
+      26  const SPOF_THRESHOLD = 2;                                      
+      27                                                                 
+      28 +const PRIORITY_ORDER: Record<Priority, number> = { critical:   
+         +0, high: 1, medium: 2 };                                       
+      29 +                                                               
+      30 +// ── Options ──────────────────────────────────────────────── 
+         +───────────────────                                            
+      31 +                                                               
+      32 +interface TransformOptions {                                   
+      33 +  /** Sort activities critical → high → medium before          
+         +assigning Y positions. */                                      
+      34 +  sortActivitiesByPriority?: boolean;                          
+      35 +  /** Sort resources by descending inbound dependency count    
+         +(SPOFs first). */                                              
+      36 +  sortResourcesByDependencyCount?: boolean;                    
+      37 +}                                                              
+      38 +                                                               
+      39  // ── Helpers ──────────────────────────────────────────────── 
+          ───────────────────                                            
+      40                                                                 
+      41  function buildInboundCounts(raw: RawGraph): Map<string,        
+          number> {                                                      
+     ...
+      37                                                                 
+      38  // ── Transform ────────────────────────────────────────────── 
+          ───────────────────                                            
+      39                                                                 
+      40 -export function transformGraph(raw: RawGraph): { nodes:        
+         -AppNode[]; edges: Edge[] } {                                   
+      40 +export function transformGraph(                                
+      41 +  raw: RawGraph,                                               
+      42 +  options: TransformOptions = {},                              
+      43 +): { nodes: AppNode[]; edges: Edge[] } {                       
+      44    const inboundCounts = buildInboundCounts(raw);               
+      45                                                                 
+      46 +  // filter() returns new arrays — safe to sort in-place       
+         +without mutating raw.nodes                                     
+      47    const activities = raw.nodes.filter((n): n is                
+          RawActivityNode => n.type === 'activity');                     
+      48    const resources = raw.nodes.filter((n): n is RawResourceNode 
+           => n.type === 'resource');                                    
+      49                                                                 
+      50 +  if (options.sortActivitiesByPriority) {                      
+      51 +    activities.sort((a, b) => PRIORITY_ORDER[a.priority] -     
+         +PRIORITY_ORDER[b.priority]);                                   
+      52 +  }                                                            
+      53 +                                                               
+      54 +  if (options.sortResourcesByDependencyCount) {                
+      55 +    resources.sort(                                            
+      56 +      (a, b) => (inboundCounts.get(b.id) ?? 0) -               
+         +(inboundCounts.get(a.id) ?? 0),                                
+      57 +    );                                                         
+      58 +  }                                                            
+      59 +                                                               
+      60    const activityNodes: AppNode[] = activities.map((n, i) => ({ 
+      61      id: n.id,                                                  
+      62      type: 'activity' as const,                                 
+
+⏺ Write(src/features/dependency-graph/hooks/useGraphData.ts)
+  ⎿  Added 16 lines, removed 2 lines
+       3  import { transformGraph } from '../lib/transformGraph';        
+       4  import rawGraph from '../../../../data/graph.json';            
+       5                                                                 
+       6 -export function useGraphData() {                               
+       7 -  return useMemo(() => transformGraph(rawGraph as RawGraph),   
+         -[]);                                                           
+       6 +export function useGraphData(                                  
+       7 +  version: number,                                             
+       8 +  sortActivitiesByPriority: boolean,                           
+       9 +  sortResourcesByDependencyCount: boolean,                     
+      10 +) {                                                            
+      11 +  return useMemo(                                              
+      12 +    () =>                                                      
+      13 +      transformGraph(rawGraph as RawGraph, {                   
+      14 +        sortActivitiesByPriority,                              
+      15 +        sortResourcesByDependencyCount,                        
+      16 +      }),                                                      
+      17 +    // version is intentionally included to allow callers to   
+         +force a re-derive                                              
+      18 +    // (e.g. the Reload button) without changing sort options. 
+      19 +    // eslint-disable-next-line react-hooks/exhaustive-deps    
+      20 +    [version, sortActivitiesByPriority,                        
+         +sortResourcesByDependencyCount],                               
+      21 +  );                                                           
+      22  }                                                              
+
+⏺ Write(src/App.tsx)
+  ⎿  Added 72 lines, removed 3 lines
+       3  import { GraphCanvas } from                                    
+          './features/dependency-graph/components/GraphCanvas';          
+       4  import { DetailPanel } from                                    
+          './features/dependency-graph/components/DetailPanel';          
+       5                                                                 
+       6 +function ToggleButton({                                        
+       7 +  active,                                                      
+       8 +  onClick,                                                     
+       9 +  children,                                                    
+      10 +}: {                                                           
+      11 +  active: boolean;                                             
+      12 +  onClick: () => void;                                         
+      13 +  children: string;                                            
+      14 +}) {                                                           
+      15 +  return (                                                     
+      16 +    <button                                                    
+      17 +      onClick={onClick}                                        
+      18 +      className={[                                             
+      19 +        'rounded border px-3 py-1.5 text-xs font-medium        
+         +transition-colors',                                            
+      20 +        active                                                 
+      21 +          ? 'border-slate-800 bg-slate-800 text-white'         
+      22 +          : 'border-slate-300 bg-white text-slate-600          
+         +hover:border-slate-500 hover:text-slate-800',                  
+      23 +      ].join(' ')}                                             
+      24 +    >                                                          
+      25 +      {children}                                               
+      26 +    </button>                                                  
+      27 +  );                                                           
+      28 +}                                                              
+      29 +                                                               
+      30  function App() {                                               
+      31 -  const { nodes, edges } = useGraphData();                     
+      31 +  const [version, setVersion] = useState(0);                   
+      32 +  const [sortActivities, setSortActivities] = useState(false); 
+      33 +  const [sortResources, setSortResources] = useState(false);   
+      34    const [selectedNodeId, setSelectedNodeId] = useState<string  
+          | null>(null);                                                 
+      35                                                                 
+      36 +  const { nodes, edges } = useGraphData(version,               
+         +sortActivities, sortResources);                                
+      37 +                                                               
+      38 +  // Changing the graph structure remounts GraphCanvas so      
+         +React Flow reinitialises                                       
+      39 +  // with the new node positions and re-runs fitView.          
+      40 +  const graphKey =                                             
+         +`${version}:${sortActivities}:${sortResources}`;               
+      41 +                                                               
+      42    const selectedNode = selectedNodeId                          
+      43      ? (nodes.find((n) => n.id === selectedNodeId) ?? null)     
+      44      : null;                                                    
+      45                                                                 
+      46 +  function handleReload() {                                    
+      47 +    setVersion((v) => v + 1);                                  
+      48 +    setSelectedNodeId(null);                                   
+      49 +  }                                                            
+      50 +                                                               
+      51 +  function handleToggleSortActivities() {                      
+      52 +    setSortActivities((v) => !v);                              
+      53 +    setSelectedNodeId(null);                                   
+      54 +  }                                                            
+      55 +                                                               
+      56 +  function handleToggleSortResources() {                       
+      57 +    setSortResources((v) => !v);                               
+      58 +    setSelectedNodeId(null);                                   
+      59 +  }                                                            
+      60 +                                                               
+      61    return (                                                     
+      62      <div className="flex h-screen flex-col bg-slate-50">       
+      63        <header className="shrink-0 border-b border-slate-200    
+          bg-white px-6 py-3 shadow-sm">                                 
+      64 -        <h1 className="text-base font-semibold                 
+         -text-slate-900">Dependency Graph</h1>                          
+      65 -        <p className="text-xs text-slate-500">Business         
+         -activities and their resource dependencies</p>                 
+      64 +        <div className="flex items-center justify-between      
+         +gap-6">                                                        
+      65 +          <div>                                                
+      66 +            <h1 className="text-base font-semibold             
+         +text-slate-900">Dependency Graph</h1>                          
+      67 +            <p className="text-xs text-slate-500">             
+      68 +              Business activities and their resource           
+         +dependencies                                                   
+      69 +            </p>                                               
+      70 +          </div>                                               
+      71 +          <div className="flex items-center gap-2">            
+      72 +            <ToggleButton active={sortActivities}              
+         +onClick={handleToggleSortActivities}>                          
+      73 +              Activities by priority                           
+      74 +            </ToggleButton>                                    
+      75 +            <ToggleButton active={sortResources}               
+         +onClick={handleToggleSortResources}>                           
+      76 +              Resources by connectivity                        
+      77 +            </ToggleButton>                                    
+      78 +            <div className="mx-1 h-4 w-px bg-slate-200" />     
+      79 +            <button                                            
+      80 +              onClick={handleReload}                           
+      81 +              className="rounded border border-slate-300       
+         +bg-white px-3 py-1.5 text-xs font-medium text-slate-600        
+         +transition-colors hover:border-slate-500 hover:text-slate-800" 
+      82 +            >                                                  
+      83 +              Reload                                           
+      84 +            </button>                                          
+      85 +          </div>                                               
+      86 +        </div>                                                 
+      87        </header>                                                
+      88        <div className="flex min-h-0 flex-1">                    
+      89          <main className="min-h-0 flex-1">                      
+      90            <GraphCanvas                                         
+      91 +            key={graphKey}                                     
+      92              initialNodes={nodes}                               
+      93              initialEdges={edges}                               
+      94              selectedNodeId={selectedNodeId}                    
+
+⏺ Now update SOLUTION.md:
+
+⏺ Read 1 file (ctrl+o to expand)
+
+⏺ Update(SOLUTION.md)
+  ⎿  Added 25 lines
+      155                                                                
+      156  ---                                                           
+      157                                                                
+      158 +## Step 4 — Reload, activity ordering, resource ordering      
+      159 +                                                              
+      160 +### Reload                                                    
+      161 +                                                              
+      162 +`version: number` state in `App` is incremented by the        
+          +**Reload** button. It is passed as a parameter to             
+          +`useGraphData`, which includes it in the `useMemo` dependency 
+          + array. When `version` changes, `transformGraph` re-runs with 
+          + the current sort options, producing fresh node positions.    
+          +Clicking Reload also clears `selectedNodeId`.                 
+      163 +                                                              
+      164 +### Sort options                                              
+      165 +                                                              
+      166 +Two optional flags were added to `transformGraph`:            
+      167 +                                                              
+      168 +- `sortActivitiesByPriority` — sorts activities `critical →   
+          +high → medium` before assigning Y positions, using a          
+          +`PRIORITY_ORDER` lookup                                       
+      169 +- `sortResourcesByDependencyCount` — sorts resources by       
+          +descending inbound dependency count (most-connected SPOFs     
+          +appear at the top of the right column)                        
+      170 +                                                              
+      171 +Both sorts operate on the arrays returned by `filter()`, so   
+          +`raw.nodes` is never mutated.                                 
+      172 +                                                              
+      173 +### Graph remount strategy                                    
+      174 +                                                              
+      175 +`graphKey =                                                   
+          +\`${version}:${sortActivities}:${sortResources}\`` is passed  
+          +as the `key` prop to `GraphCanvas`. When any of the three     
+          +values change, React unmounts and remounts `GraphCanvas`,     
+          +which causes `useNodesState` to reinitialise with the new     
+          +positions and React Flow to re-run `fitView`. This is simpler 
+          + and more correct than trying to imperatively sync            
+          +`initialNodes` into an already-mounted React Flow instance.   
+      176 +                                                              
+      177 +### UI                                                        
+      178 +                                                              
+      179 +A `ToggleButton` local component (active = dark fill,         
+          +inactive = outlined) is used for the two sort options. The    
+          +**Reload** button uses the same base styles without toggle    
+          +state. All controls sit in the right side of the header,      
+          +separated from the title block by a flex spacer and from the  
+          +Reload button by a thin divider.                              
+      180 +                                                              
+      181 +---                                                           
+      182 +                                                              
+      183  ## Read-only graph                                            
+      184                                                                
+      185  Two changes to prevent connection editing:                    
+
+⏺ Done. Here's a summary of what changed and why each decision was made:
+
+  ---
+  Step 4 complete
+
+  transformGraph.ts
+  - Added TransformOptions interface with two optional booleans
+  - PRIORITY_ORDER maps priority strings to integers for a clean .sort()
+  comparator
+  - Both sorts operate on the filter() result arrays — raw.nodes is never
+  mutated
+  - Resource sort: descending inbound count (most-connected SPOFs first)
+
+  useGraphData.ts
+  - Now takes version, sortActivitiesByPriority, sortResourcesByDependencyCount
+  as individual params
+  - All three are in the useMemo deps — changing any one re-runs transformGraph
+  - version is not used inside the factory but is a legitimate cache-buster
+  (comment explains this to avoid confusion)
+
+  App.tsx
+  - graphKey string drives GraphCanvas's key prop — on any structural change,
+  React remounts the canvas so useNodesState gets the new positions and fitView
+  fires automatically. No need for an imperative sync mechanism.
+  - Sort toggles and Reload both call setSelectedNodeId(null) to avoid showing a
+   stale detail panel after the layout changes
+  - ToggleButton is a small local component (3 props, no abstraction file
+  needed)
+  - Reload keeps the current sort settings — it only resets positions
+
+✻ Sautéed for 3m 26s
