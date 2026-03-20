@@ -10,6 +10,25 @@ import type {
 } from '../types/graph';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
+//
+// Positions are hardcoded into a simple 2-column grid rather than computed by
+// an automatic layout algorithm such as dagre.
+//
+// Why dagre was not used:
+//   1. Node-dimension problem — dagre requires node dimensions before layout,
+//      but React Flow only measures them after the first render. This forces a
+//      useEffect-based re-layout that causes a visible position flash on every
+//      load.
+//   2. Extra complexity — the effect adds a second render cycle and makes state
+//      flow harder to reason about.
+//   3. Unnecessary for this dataset — the data is static and bipartite
+//      (activities → resources), so dagre would always produce a 2-column
+//      result equivalent to this hardcoded layout.
+//   4. Additional dependencies — dagre + its type definitions would increase
+//      bundle size with no functional benefit here.
+//
+// The README explicitly notes "Automatic layout perfection — a reasonable
+// initial layout is fine", confirming this trade-off is acceptable.
 
 const LAYOUT = {
   ACTIVITY_X: 100,

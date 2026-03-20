@@ -189,6 +189,25 @@ Two changes to prevent connection editing:
 
 ---
 
+## Layout decision — why dagre was not used
+
+During the planning phase, two options were considered for assigning initial node positions:
+
+1. **dagre** (`@dagrejs/dagre`) — an automatic directed-graph layout algorithm recommended in the React Flow ecosystem
+2. A **hardcoded 2-column layout** — activities fixed to x=100, resources fixed to x=560, both spaced vertically by a constant step
+
+**dagre was not used.** The data has a very predictable, static 2-column structure (activities on the left depend on resources on the right), so a general-purpose layout algorithm would provide no extra value while introducing the following complexity:
+
+- **Node-dimension chicken-and-egg problem.** dagre needs to know each node's width and height before it can compute positions. React Flow only measures node dimensions *after* the first render. This means the layout must be applied in a `useEffect` — after the initial render — causing every graph load to show a visible "position flash" where nodes jump from their pre-layout coordinates to their dagre-computed coordinates.
+- **Async synchronisation.** Running dagre inside an effect requires calling `setNodes` a second time with the corrected positions, which adds a second render cycle and makes the state flow harder to reason about.
+- **Additional dependencies.** Using dagre requires both `@dagrejs/dagre` and `@types/dagre`, increasing bundle size and the number of third-party packages to keep updated.
+- **Edge routing.** dagre can output edge bend-points, but mapping those back into React Flow's edge model (straight, bezier, step, smoothstep) requires extra adapter code.
+- **Unnecessary for this dataset.** The data is static and bipartite (activities → resources), so dagre would always produce a 2-column result anyway — equivalent to the hardcoded layout without the added complexity.
+
+**The hardcoded layout** defined in `transformGraph.ts` (`LAYOUT` constants) is therefore the right trade-off: it is simple, deterministic, renders without any flash, and directly reflects the known structure of the dataset.
+
+---
+
 ## Observations about dataset
 
 While inspecting the dataset, I noticed that most dependencies follow the expected pattern:
